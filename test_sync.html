@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncWatch Test - Room Q</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>SyncWatch Synchronization Test - Room Q</h1>
+    <div id="test-log"></div>
+    
+    <script>
+        const log = (message, type = 'info') => {
+            const logDiv = document.getElementById('test-log');
+            const entry = document.createElement('div');
+            entry.className = `test-log ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        };
+
+        // Test the synchronization functionality
+        log('Starting SyncWatch synchronization test for room Q...', 'info');
+        
+        // Open the main application in a new window to test
+        log('Opening SyncWatch application...', 'info');
+        
+        // Create a simple test that can be run manually
+        const testInstructions = `
+            <h3>Manual Test Instructions:</h3>
+            <ol>
+                <li>Open <a href="http://localhost:3001" target="_blank">http://localhost:3001</a> in one browser tab</li>
+                <li>Enter username: "TestUser1" and room: "q", then click "Join Room"</li>
+                <li>Open another browser tab with the same URL</li>
+                <li>Enter username: "TestUser2" and room: "q", then click "Join Room"</li>
+                <li>In either tab, load a video file or YouTube URL</li>
+                <li>Play/pause/seek the video and observe if both tabs sync</li>
+                <li>Send chat messages and check if they appear in both tabs</li>
+            </ol>
+            <p><strong>Expected Results:</strong></p>
+            <ul>
+                <li class="success">Both users should see each other in the room</li>
+                <li class="success">Media playback should sync between both users</li>
+                <li class="success">Chat messages should appear in both tabs</li>
+                <li class="success">User join/leave notifications should work</li>
+            </ul>
+        `;
+        
+        document.body.innerHTML += testInstructions;
+        
+        log('Test page loaded. Follow the manual test instructions above.', 'success');
+    </script>
+</body>
+</html>

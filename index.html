@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncWatch - Watch Together</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Theme Toggle Button moved to navbar -->
+
+    <!-- Age Verification Modal -->
+    <div id="ageModal" class="modal">
+        <div class="modal-content">
+            <h2><i class="fas fa-exclamation-triangle"></i> Age Verification</h2>
+            <p>You must be 18 years or older to use this website.</p>
+            <p>Please enter your age to continue:</p>
+            <input type="number" id="ageInput" placeholder="Enter your age" min="1" max="120">
+            <div class="modal-buttons">
+                <button id="verifyAge" class="btn btn-primary">Verify Age</button>
+                <button id="exitSite" class="btn btn-secondary">Exit Site</button>
+            </div>
+            <div id="ageError" class="error-message"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <h1><i class="fa-solid fa-wind"></i>Blinde</h1>
+            <div class="header-controls">
+                <div class="room-info">
+                    <span id="roomId">Not Connected</span>
+                    <span id="userCount">User:0</span>
+                </div>
+                <button id="themeToggle" class="theme-toggle" title="Toggle Dark Mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="roomSetup" class="room-setup">
+                <div class="setup-card">
+                    <h2>Join or Create a Room</h2>
+                    <div class="input-group">
+                        <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
+                        <input type="text" id="roomIdInput" placeholder="Room ID (leave empty to create new)">
+                        <button id="joinRoomBtn" class="btn btn-primary">
+                            <i class="fa-solid fa-seedling"></i> Join Room
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="mediaSection" class="media-section hidden">
+                <div class="player-container">
+                    <div class="video-container">
+                        <video id="directPlayer" class="media-player" controls>
+                            Your browser does not support the video tag.
+                        </video>
+
+                        <iframe 
+                            id="youtubePlayer" 
+                            class="media-player hidden" 
+                            src="" 
+                            frameborder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowfullscreen>
+                        </iframe>
+
+                        <div class="video-overlay">
+                            <div class="sync-status" id="syncStatus">
+                                <i class="fa-solid fa-dragon"></i> Synced
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="media-controls">
+                        <div class="file-inputs">
+                            <label for="videoFile" class="file-label">
+                                <i class="fas fa-video"></i> Load Video
+                                <input type="file" id="videoFile" accept="video/*" hidden>
+                            </label>
+                        </div>
+                        <div class="url-inputs">
+                            <input type="url" id="videoUrl" placeholder="Video URL (YouTube, etc.)">
+                            <button id="loadVideoUrl" class="btn btn-secondary">Load Video</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <h3><i class="fas fa-comments"></i> Chat</h3>
+                        <div class="online-users" id="onlineUsers"></div>
+                        <button id="chatMinimize" class="chat-minimize" title="Minimize Chat">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                    </div>
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="messageInput" placeholder="Type a message..." maxlength="200">
+                        <button id="sendMessage" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div class="connection-status" id="connectionStatus">
+        <i class="fas fa-wifi"></i> Connecting...
+    </div>
+
+    <!-- Feedback Button -->
+    <button id="feedbackButton" class="feedback-button" title="Give Feedback">
+        <i class="fas fa-comment-dots"></i>
+    </button>
+
+    <!-- Feedback Modal -->
+    <div id="feedbackModal" class="modal feedback-modal">
+        <div class="modal-content">
+            <h2><i class="fas fa-star"></i> Feedback</h2>
+            <form id="feedbackForm" class="feedback-form">
+                <label for="feedbackName">Your Name:</label>
+                <input type="text" id="feedbackName" placeholder="Enter your name" required>
+                
+                <label for="feedbackEmail">Email (Optional):</label>
+                <input type="email" id="feedbackEmail" placeholder="your@email.com">
+                
+                <label for="feedbackRating">Rating:</label>
+                <select id="feedbackRating" required>
+                    <option value="">Select rating</option>
+                    <option value="5">⭐⭐⭐⭐⭐ - Excellent</option>
+                    <option value="4">⭐⭐⭐⭐ - Good</option>
+                    <option value="3">⭐⭐⭐ - Average</option>
+                    <option value="2">⭐⭐ - Poor</option>
+                    <option value="1">⭐ - Very Poor</option>
+                </select>
+                
+                <label for="feedbackMessage">Your Feedback:</label>
+                <textarea id="feedbackMessage" placeholder="Tell us about your experience..." required></textarea>
+                
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">Submit Feedback</button>
+                    <button type="button" id="cancelFeedback" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="script.js"></script>
+    <footer class="footer">
+        <p class="footer-text"><i class="fa-solid fa-trademark"></i> Blinde. All rights reserved.</p>
+    </footer>
+
+<style>
+.footer {
+    background-color: transparent;
+    color: #ffffff;
+    text-align: center;
+    padding: 1rem;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.footer-text {
+    margin: 0;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+</style>
+</body>
+</html>

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Viewer - SyncWatch</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            opacity: 0.9;
+        }
+
+        .feedback-list {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .feedback-item {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .feedback-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .feedback-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        .feedback-rating {
+            color: #ffc107;
+            font-size: 1.2rem;
+        }
+
+        .feedback-email {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .feedback-message {
+            color: #333;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .feedback-time {
+            color: #999;
+            font-size: 0.8rem;
+            text-align: right;
+        }
+
+        .no-feedback {
+            text-align: center;
+            color: #666;
+            font-size: 1.2rem;
+            padding: 40px;
+        }
+
+        .clear-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-right: 10px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .export-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .export-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        /* Dark mode support */
+        body[data-theme="dark"] {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        body[data-theme="dark"] .container {
+            background: rgba(15, 15, 35, 0.8);
+            color: #ffffff;
+        }
+
+        body[data-theme="dark"] .header h1 {
+            color: #64b5f6;
+        }
+
+        body[data-theme="dark"] .header p {
+            color: #b0b0b0;
+        }
+
+        body[data-theme="dark"] .feedback-list {
+            background: rgba(20, 20, 40, 0.6);
+        }
+
+        body[data-theme="dark"] .feedback-item {
+            background: rgba(30, 30, 50, 0.8);
+            color: #ffffff;
+            border-left-color: #64b5f6;
+        }
+
+        body[data-theme="dark"] .feedback-name {
+            color: #64b5f6;
+        }
+
+        body[data-theme="dark"] .feedback-email {
+            color: #b0b0b0;
+        }
+
+        body[data-theme="dark"] .feedback-message {
+            color: #e0e0e0;
+        }
+
+        body[data-theme="dark"] .feedback-time {
+            color: #888;
+        }
+
+        body[data-theme="dark"] .no-feedback {
+            color: #b0b0b0;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: white;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" id="themeToggle" title="Toggle Theme">
+        <i class="fas fa-moon"></i>
+    </button>
+
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-star"></i> Feedback Viewer</h1>
+            <p>View all submitted feedback from SyncWatch users</p>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <h3 id="totalFeedback">0</h3>
+                <p>Total Feedback</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="avgRating">0</h3>
+                <p>Average Rating</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="fiveStar">0</h3>
+                <p>5-Star Ratings</p>
+            </div>
+        </div>
+
+        <div class="feedback-list" id="feedbackList">
+            <div class="no-feedback">
+                <i class="fas fa-comments" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
+                <p>No feedback submitted yet</p>
+                <p style="font-size: 0.9rem; margin-top: 10px;">Submit some feedback from the main app to see it here!</p>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="/" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back to App
+            </a>
+            <button class="export-btn" id="exportBtn">
+                <i class="fas fa-download"></i> Export Data
+            </button>
+            <button class="clear-btn" id="clearBtn">
+                <i class="fas fa-trash"></i> Clear All Feedback
+            </button>
+        </div>
+    </div>
+
+    <script>
+        class FeedbackViewer {
+            constructor() {
+                this.feedback = [];
+                this.init();
+            }
+
+            init() {
+                this.loadFeedback();
+                this.renderFeedback();
+                this.updateStats();
+                this.setupEventListeners();
+                this.loadTheme();
+            }
+
+            loadFeedback() {
+                this.feedback = JSON.parse(localStorage.getItem('feedback') || '[]');
+                // Sort by newest first
+                this.feedback.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            }
+
+            renderFeedback() {
+                const container = document.getElementById('feedbackList');
+                
+                if (this.feedback.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-feedback">
+                            <i class="fas fa-comments" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
+                            <p>No feedback submitted yet</p>
+                            <p style="font-size: 0.9rem; margin-top: 10px;">Submit some feedback from the main app to see it here!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = this.feedback.map(item => this.createFeedbackHTML(item)).join('');
+            }
+
+            createFeedbackHTML(item) {
+                const date = new Date(item.timestamp);
+                const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                const stars = '⭐'.repeat(parseInt(item.rating));
+                
+                return `
+                    <div class="feedback-item">
+                        <div class="feedback-header">
+                            <div class="feedback-name">${this.escapeHtml(item.name)}</div>
+                            <div class="feedback-rating">${stars}</div>
+                        </div>
+                        ${item.email ? `<div class="feedback-email">${this.escapeHtml(item.email)}</div>` : ''}
+                        <div class="feedback-message">${this.escapeHtml(item.message)}</div>
+                        <div class="feedback-time">${formattedDate}</div>
+                    </div>
+                `;
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            updateStats() {
+                const total = this.feedback.length;
+                const avgRating = total > 0 ? (this.feedback.reduce((sum, item) => sum + parseInt(item.rating), 0) / total).toFixed(1) : 0;
+                const fiveStar = this.feedback.filter(item => item.rating === '5').length;
+
+                document.getElementById('totalFeedback').textContent = total;
+                document.getElementById('avgRating').textContent = avgRating;
+                document.getElementById('fiveStar').textContent = fiveStar;
+            }
+
+            setupEventListeners() {
+                document.getElementById('clearBtn').addEventListener('click', () => {
+                    if (confirm('Are you sure you want to clear all feedback? This action cannot be undone.')) {
+                        localStorage.removeItem('feedback');
+                        this.loadFeedback();
+                        this.renderFeedback();
+                        this.updateStats();
+                    }
+                });
+
+                document.getElementById('exportBtn').addEventListener('click', () => {
+                    this.exportFeedback();
+                });
+
+                document.getElementById('themeToggle').addEventListener('click', () => {
+                    this.toggleTheme();
+                });
+            }
+
+            exportFeedback() {
+                if (this.feedback.length === 0) {
+                    alert('No feedback to export');
+                    return;
+                }
+
+                const dataStr = JSON.stringify(this.feedback, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `syncwatch-feedback-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+            }
+
+            // Theme functionality
+            loadTheme() {
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                document.body.setAttribute('data-theme', savedTheme);
+                this.updateThemeIcon(savedTheme);
+            }
+
+            toggleTheme() {
+                const currentTheme = document.body.getAttribute('data-theme') || 'light';
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                
+                document.body.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                this.updateThemeIcon(newTheme);
+            }
+
+            updateThemeIcon(theme) {
+                const icon = document.querySelector('#themeToggle i');
+                icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+            }
+        }
+
+        // Initialize the feedback viewer
+        document.addEventListener('DOMContentLoaded', () => {
+            new FeedbackViewer();
+        });
+    </script>
+</body>
+</html>
