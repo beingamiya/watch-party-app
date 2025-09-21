@@ -98,10 +98,17 @@ class SyncWatch {
         this.chatMinimize.addEventListener('click', () => this.toggleChat());
         
         // Age verification
-        this.verifyAge.addEventListener('click', () => this.verifyUserAge());
-        this.exitSite.addEventListener('click', () => this.exitWebsite());
-        this.ageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.verifyUserAge();
+     this.verifyAge.addEventListener('click', () => {
+            const age = parseInt(this.ageInput.value);
+            if (age >= 18) {
+                this.verifyUserAge();
+            } else {
+                this.ageError.textContent = 'You must be 18 or older to use this feature.';
+                this.ageError.style.display = 'block';
+                setTimeout(() => {
+                    this.ageError.style.display = 'none';
+                }, 3000);
+            }
         });
         
         // Feedback system
