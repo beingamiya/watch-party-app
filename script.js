@@ -100,7 +100,7 @@ class SyncWatch {
         // Age verification
      this.verifyAge.addEventListener('click', () => {
             const age = parseInt(this.ageInput.value);
-            if (age >= 18) {
+            if (age <= 18) {
                 this.verifyUserAge();
             } else {
                 this.ageError.textContent = 'You must be 18 or older to use this feature.';
