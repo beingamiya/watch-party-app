@@ -1,4 +1,13 @@
 {
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
+{
   "name": "flex.ai",
   "version": "1.0.0",
   "description": "A synchronized media sharing application where two people can watch movies and listen to music together",
