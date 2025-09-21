@@ -1,12 +1,13 @@
 {
-  "name": "flex.ai",
+  "name": "watch-party-app",
   "version": "1.0.0",
   "description": "A synchronized media sharing application where two people can watch movies and listen to music together",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "install-deps": "npm install"
+    "build": "npm install",
+    "heroku-postbuild": "npm install"
   },
   "keywords": [
     "sync",
@@ -15,7 +16,9 @@
     "media",
     "streaming",
     "websocket",
-    "realtime"
+    "realtime",
+    "watch-party",
+    "collaborative"
   ],
   "author": "Amiya",
   "license": "MIT",
@@ -31,6 +34,7 @@
     "nodemon": "^3.0.1"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": "18.x",
+    "npm": "9.x"
   }
 }
