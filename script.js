@@ -492,13 +492,13 @@ class SyncWatch {
     verifyUserAge() {
         const age = parseInt(this.ageInput.value);
         
-        if (age === 18) {
+        if (age >= 18) {
             this.isAgeVerified = true;
             this.ageModal.style.display = 'none';
             document.body.style.overflow = 'auto';
             this.addChatMessage('System', 'Welcome to SyncWatch! Age verification successful.', 'system');
         } else {
-            this.ageError.textContent = 'You are not eligible. Thanks for using our site.';
+            this.ageError.textContent = 'You must be 18 or older to use this feature.';
             this.ageError.style.display = 'block';
             setTimeout(() => {
                 this.ageError.style.display = 'none';
