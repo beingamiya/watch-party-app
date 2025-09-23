@@ -6,6 +6,7 @@ class SyncWatch {
         this.isHost = false;
         this.syncTolerance = 1; // seconds
         this.lastSyncTime = 0;
+        this.youtubeStartTime = 0; // Track when YouTube video started playing
         this.isAgeVerified = false;
         this.chatMinimized = false;
         
@@ -259,8 +260,8 @@ class SyncWatch {
             const videoId = this.extractYouTubeId(url);
             
             if (videoId) {
-                // Create embedded YouTube URL
-                const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                // Create embedded YouTube URL with API parameters
+                const embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&modestbranding=1&rel=0&fs=1`;
                 this.youtubePlayer.src = embedUrl;
                 this.youtubePlayer.classList.remove('hidden');
                 this.directPlayer.classList.add('hidden');
@@ -287,18 +288,37 @@ class SyncWatch {
 
 
     onMediaPlay(type) {
-        this.broadcastMediaEvent('play', type, this.directPlayer.currentTime);
+        const currentTime = this.getCurrentPlayerTime();
+        this.broadcastMediaEvent('play', type, currentTime);
         this.updateSyncStatus('synced');
     }
 
     onMediaPause(type) {
-        this.broadcastMediaEvent('pause', type, this.directPlayer.currentTime);
+        const currentTime = this.getCurrentPlayerTime();
+        this.broadcastMediaEvent('pause', type, currentTime);
         this.updateSyncStatus('synced');
     }
 
     onMediaSeek(type) {
-        this.broadcastMediaEvent('seek', type, this.directPlayer.currentTime);
+        const currentTime = this.getCurrentPlayerTime();
+        this.broadcastMediaEvent('seek', type, currentTime);
         this.updateSyncStatus('synced');
+    }
+
+    getCurrentPlayerTime() {
+        // Check which player is active and return its current time
+        const isYouTubeActive = !this.youtubePlayer.classList.contains('hidden');
+        const isDirectVideoActive = !this.directPlayer.classList.contains('hidden');
+        
+        if (isYouTubeActive) {
+            // For YouTube, we'll estimate time based on when the video started playing
+            // This is a simplified approach - in a real implementation you'd use the YouTube API
+            return this.youtubeStartTime || 0;
+        } else if (isDirectVideoActive) {
+            return this.directPlayer.currentTime;
+        }
+        
+        return 0;
     }
 
     onTimeUpdate(type) {
@@ -343,19 +363,43 @@ class SyncWatch {
         // Only handle video sync (audio removed)
         if (type !== 'video') return;
         
-        // Apply the synchronization
-        switch (action) {
-            case 'play':
-                this.directPlayer.currentTime = currentTime;
-                this.directPlayer.play().catch(e => console.log('Play failed:', e));
-                break;
-            case 'pause':
-                this.directPlayer.currentTime = currentTime;
-                this.directPlayer.pause();
-                break;
-            case 'seek':
-                this.directPlayer.currentTime = currentTime;
-                break;
+        // Check which player is currently active
+        const isYouTubeActive = !this.youtubePlayer.classList.contains('hidden');
+        const isDirectVideoActive = !this.directPlayer.classList.contains('hidden');
+        
+        if (isYouTubeActive) {
+            // Handle YouTube synchronization
+            if (this.youtubePlayer.contentWindow) {
+                switch (action) {
+                    case 'play':
+                        this.youtubePlayer.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+                        this.youtubeStartTime = Date.now() - (currentTime * 1000); // Estimate start time based on sync time
+                        break;
+                    case 'pause':
+                        this.youtubePlayer.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+                        break;
+                    case 'seek':
+                        // YouTube seek command (convert to seconds if needed)
+                        this.youtubePlayer.contentWindow.postMessage(`{"event":"command","func":"seekTo","args":[${currentTime}, true]}`, '*');
+                        this.youtubeStartTime = Date.now() - (currentTime * 1000); // Update estimated start time
+                        break;
+                }
+            }
+        } else if (isDirectVideoActive) {
+            // Handle direct video synchronization
+            switch (action) {
+                case 'play':
+                    this.directPlayer.currentTime = currentTime;
+                    this.directPlayer.play().catch(e => console.log('Play failed:', e));
+                    break;
+                case 'pause':
+                    this.directPlayer.currentTime = currentTime;
+                    this.directPlayer.pause();
+                    break;
+                case 'seek':
+                    this.directPlayer.currentTime = currentTime;
+                    break;
+            }
         }
         
         this.addChatMessage('System', `${username} ${action}ed the ${type}`, 'system');
@@ -374,10 +418,33 @@ class SyncWatch {
             this.youtubePlayer.src = source;
             this.youtubePlayer.classList.remove('hidden');
             this.directPlayer.classList.add('hidden');
+            this.youtubeStartTime = 0; // Reset start time for new video
+            
+            // Wait for YouTube player to load and then play
+            this.youtubePlayer.onload = () => {
+                // Add a small delay to ensure player is ready
+                setTimeout(() => {
+                    if (this.youtubePlayer.contentWindow) {
+                        // Send play command to YouTube iframe
+                        this.youtubePlayer.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+                        this.youtubeStartTime = Date.now(); // Track when video started
+                        this.addChatMessage('System', 'YouTube video is now playing for you', 'system');
+                    }
+                }, 2000);
+            };
         } else {
             this.directPlayer.src = source;
             this.directPlayer.classList.remove('hidden');
             this.youtubePlayer.classList.add('hidden');
+            
+            // Wait for video to load and then play
+            this.directPlayer.onloadeddata = () => {
+                this.directPlayer.play().catch(e => {
+                    console.log('Auto-play failed:', e);
+                    // If autoplay is blocked, show play button
+                    this.addChatMessage('System', 'Click the play button to start watching', 'system');
+                });
+            };
         }
         
         this.addChatMessage('System', `${username} loaded ${type}`, 'system');
