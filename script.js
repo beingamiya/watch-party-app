@@ -9,6 +9,8 @@ class SyncWatch {
         this.youtubeStartTime = 0; // Track when YouTube video started playing
         this.isAgeVerified = false;
         this.chatMinimized = false;
+        this.isSyncing = false; // Flag to prevent sync loops
+        this.feedbackModalUserTriggered = false; // Flag to track user-triggered modal opening
         
         this.initializeElements();
         this.attachEventListeners();
@@ -16,6 +18,8 @@ class SyncWatch {
         this.initializeThemeToggle();
         this.initializeFeedbackSystem();
         this.initializeSocketConnection();
+        this.updateFooterYear();
+        this.setupScrollEffects();
     }
 
     initializeElements() {
@@ -58,6 +62,7 @@ class SyncWatch {
         this.feedbackModal = document.getElementById('feedbackModal');
         this.feedbackForm = document.getElementById('feedbackForm');
         this.cancelFeedback = document.getElementById('cancelFeedback');
+        this.playButtonOverlay = document.getElementById('playButtonOverlay');
     }
 
     attachEventListeners() {
@@ -78,9 +83,38 @@ class SyncWatch {
         
         // Media player events - for both direct video and YouTube players
         if (this.directPlayer) {
-            this.directPlayer.addEventListener('play', () => this.onMediaPlay('video'));
-            this.directPlayer.addEventListener('pause', () => this.onMediaPause('video'));
-            this.directPlayer.addEventListener('seeked', () => this.onMediaSeek('video'));
+            this.directPlayer.addEventListener('play', () => {
+                console.log(`[EVENT] Direct player play event, isSyncing: ${this.isSyncing}`);
+                // Hide play button when video starts playing
+                this.playButtonOverlay.classList.add('hidden');
+                // Only broadcast if this is a user-initiated play (not from sync)
+                if (!this.isSyncing) {
+                    console.log(`[EVENT] Broadcasting play event`);
+                    this.onMediaPlay('video');
+                } else {
+                    console.log(`[EVENT] Skipping play broadcast - isSyncing is true`);
+                }
+            });
+            this.directPlayer.addEventListener('pause', () => {
+                console.log(`[EVENT] Direct player pause event, isSyncing: ${this.isSyncing}`);
+                // Only broadcast if this is a user-initiated pause (not from sync)
+                if (!this.isSyncing) {
+                    console.log(`[EVENT] Broadcasting pause event`);
+                    this.onMediaPause('video');
+                } else {
+                    console.log(`[EVENT] Skipping pause broadcast - isSyncing is true`);
+                }
+            });
+            this.directPlayer.addEventListener('seeked', () => {
+                console.log(`[EVENT] Direct player seeked event, isSyncing: ${this.isSyncing}, currentTime: ${this.directPlayer.currentTime}`);
+                // Only broadcast if this is a user-initiated seek (not from sync)
+                if (!this.isSyncing) {
+                    console.log(`[EVENT] Broadcasting seek event`);
+                    this.onMediaSeek('video');
+                } else {
+                    console.log(`[EVENT] Skipping seek broadcast - isSyncing is true`);
+                }
+            });
             this.directPlayer.addEventListener('timeupdate', () => this.onTimeUpdate('video'));
         }
         
@@ -238,16 +272,61 @@ class SyncWatch {
         return Math.random().toString(36).substring(2, 8).toUpperCase();
     }
 
-    handleVideoFile(event) {
+    async handleVideoFile(event) {
         const file = event.target.files[0];
         if (file) {
-            const url = URL.createObjectURL(file);
-            // Use direct player for local files
-            this.directPlayer.src = url;
-            this.directPlayer.classList.remove('hidden');
-            this.youtubePlayer.classList.add('hidden');
-            this.broadcastMediaLoad('video', file.name);
-            this.addChatMessage('System', `${this.username} loaded video: ${file.name}`, 'system');
+            // Client-side file size check (5GB limit)
+            const maxSize = 5 * 1024 * 1024 * 1024; // 5GB in bytes
+            if (file.size > maxSize) {
+                this.addChatMessage('System', `File too large: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)}MB). Maximum file size is 5GB.`, 'system');
+                return;
+            }
+            
+            // Show upload progress
+            this.addChatMessage('System', `Uploading ${file.name}...`, 'system');
+            
+            try {
+                // Upload file to server
+                const formData = new FormData();
+                formData.append('video', file);
+                
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Upload failed');
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Use the server URL for the video
+                    this.directPlayer.src = result.url;
+                    this.directPlayer.classList.remove('hidden');
+                    this.youtubePlayer.classList.add('hidden');
+                    
+                    // Broadcast the server URL so other users can access it
+                    this.broadcastMediaLoad('video', result.url);
+                    this.addChatMessage('System', `${this.username} loaded video: ${file.name}`, 'system');
+                    
+                    console.log('File uploaded successfully:', result.url);
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                this.addChatMessage('System', `Upload failed: ${error.message}`, 'system');
+                
+                // Fallback to local blob URL (only works for current user)
+                const url = URL.createObjectURL(file);
+                this.directPlayer.src = url;
+                this.directPlayer.classList.remove('hidden');
+                this.youtubePlayer.classList.add('hidden');
+                this.addChatMessage('System', `${this.username} loaded video locally (not shared)`, 'system');
+            }
         }
     }
 
@@ -286,6 +365,33 @@ class SyncWatch {
     }
 
 
+
+    playVideo() {
+        // Hide the play button overlay
+        this.playButtonOverlay.classList.add('hidden');
+        
+        // Check which player is active and play it
+        const isYouTubeActive = !this.youtubePlayer.classList.contains('hidden');
+        const isDirectVideoActive = !this.directPlayer.classList.contains('hidden');
+        
+        if (isYouTubeActive && this.youtubePlayer.contentWindow) {
+            // Play YouTube video
+            this.youtubePlayer.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            this.youtubeStartTime = Date.now(); // Track when video started
+        } else if (isDirectVideoActive) {
+            // Play direct video
+            this.directPlayer.play().catch(e => {
+                console.log('Manual play failed:', e);
+                // If manual play also fails, show button again
+                this.playButtonOverlay.classList.remove('hidden');
+            });
+        }
+        
+        // Broadcast the play event to other users
+        const currentTime = this.getCurrentPlayerTime();
+        this.broadcastMediaEvent('play', 'video', currentTime);
+        this.updateSyncStatus('synced');
+    }
 
     onMediaPlay(type) {
         const currentTime = this.getCurrentPlayerTime();
@@ -357,6 +463,8 @@ class SyncWatch {
     handleMediaSync(data) {
         const { action, type, currentTime, username } = data;
         
+        console.log(`[SYNC] Received sync event: ${action}, currentTime: ${currentTime}, isSyncing: ${this.isSyncing}`);
+        
         // Don't sync our own events
         if (username === this.username) return;
         
@@ -366,6 +474,22 @@ class SyncWatch {
         // Check which player is currently active
         const isYouTubeActive = !this.youtubePlayer.classList.contains('hidden');
         const isDirectVideoActive = !this.directPlayer.classList.contains('hidden');
+        
+        // Prevent rapid sync events (debounce)
+        const now = Date.now();
+        if (this.lastSyncTime && (now - this.lastSyncTime) < 500) {
+            console.log(`[SYNC] Skipping sync event - debounce`);
+            return; // Ignore sync events within 500ms
+        }
+        this.lastSyncTime = now;
+        
+        if (this.isSyncing) {
+            console.log(`[SYNC] Skipping sync event - isSyncing is true`);
+            return;
+        }
+        
+        // Set sync flag to prevent event loops
+        this.isSyncing = true;
         
         if (isYouTubeActive) {
             // Handle YouTube synchronization
@@ -386,21 +510,34 @@ class SyncWatch {
                 }
             }
         } else if (isDirectVideoActive) {
-            // Handle direct video synchronization
+            // Handle direct video synchronization with tolerance
+            const currentVideoTime = this.directPlayer.currentTime;
+            const timeDifference = Math.abs(currentVideoTime - currentTime);
+            
+            // Only seek if the time difference is significant (> 2 seconds)
+            if (action === 'seek' || timeDifference > 2) {
+                this.directPlayer.currentTime = currentTime;
+            }
+            
             switch (action) {
                 case 'play':
-                    this.directPlayer.currentTime = currentTime;
-                    this.directPlayer.play().catch(e => console.log('Play failed:', e));
+                    if (this.directPlayer.paused) {
+                        this.directPlayer.play().catch(e => console.log('Play failed:', e));
+                    }
                     break;
                 case 'pause':
-                    this.directPlayer.currentTime = currentTime;
-                    this.directPlayer.pause();
-                    break;
-                case 'seek':
-                    this.directPlayer.currentTime = currentTime;
+                    if (!this.directPlayer.paused) {
+                        this.directPlayer.pause();
+                    }
                     break;
             }
         }
+        
+        // Clear sync flag after longer delay to prevent race conditions
+        setTimeout(() => {
+            console.log(`[SYNC] Clearing isSyncing flag`);
+            this.isSyncing = false;
+        }, 1000); // Increased from 100ms to 1000ms to allow video operations to complete
         
         this.addChatMessage('System', `${username} ${action}ed the ${type}`, 'system');
     }
@@ -433,16 +570,29 @@ class SyncWatch {
                 }, 2000);
             };
         } else {
+            // Handle direct video file - now using server URLs
             this.directPlayer.src = source;
             this.directPlayer.classList.remove('hidden');
             this.youtubePlayer.classList.add('hidden');
             
-            // Wait for video to load and then play
+            // Show play button overlay for user interaction
+            this.playButtonOverlay.classList.remove('hidden');
+            
+            // Wait for video to load and then try to play
             this.directPlayer.onloadeddata = () => {
                 this.directPlayer.play().catch(e => {
                     console.log('Auto-play failed:', e);
                     // If autoplay is blocked, show play button
+                    this.playButtonOverlay.classList.remove('hidden');
                     this.addChatMessage('System', 'Click the play button to start watching', 'system');
+                });
+            };
+            
+            // Also try to play when metadata is loaded
+            this.directPlayer.onloadedmetadata = () => {
+                this.directPlayer.play().catch(e => {
+                    console.log('Auto-play failed on metadata:', e);
+                    this.playButtonOverlay.classList.remove('hidden');
                 });
             };
         }
@@ -549,8 +699,13 @@ class SyncWatch {
     
     // Age verification functionality
     initializeAgeVerification() {
-        this.ageModal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
+        // Only show age verification if user hasn't been verified before
+        if (!localStorage.getItem('ageVerified')) {
+            this.ageModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        } else {
+            this.isAgeVerified = true;
+        }
     }
     
     verifyUserAge() {
@@ -558,6 +713,7 @@ class SyncWatch {
         
         if (age >= 18) {
             this.isAgeVerified = true;
+            localStorage.setItem('ageVerified', 'true');
             this.ageModal.style.display = 'none';
             document.body.style.overflow = 'auto';
             this.addChatMessage('System', 'Welcome to SyncWatch! Age verification successful.', 'system');
@@ -615,16 +771,59 @@ class SyncWatch {
         }
     }
     
+    // Footer Year Update
+    updateFooterYear() {
+        const yearElement = document.getElementById('currentYear');
+        if (yearElement) {
+            yearElement.textContent = new Date().getFullYear();
+        }
+    }
+
+    // Scroll Effects
+    setupScrollEffects() {
+        const header = document.querySelector('.header');
+        if (!header) return;
+
+        let lastScrollY = window.scrollY;
+        
+        window.addEventListener('scroll', () => {
+            const currentScrollY = window.scrollY;
+            
+            if (currentScrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+            
+            lastScrollY = currentScrollY;
+        });
+    }
+
     // Feedback system functionality
+    // IMPORTANT: Feedback modal should NEVER open automatically - only on user click
     initializeFeedbackSystem() {
         // Initialize feedback form elements
         this.feedbackName = document.getElementById('feedbackName');
         this.feedbackEmail = document.getElementById('feedbackEmail');
         this.feedbackRating = document.getElementById('feedbackRating');
         this.feedbackMessage = document.getElementById('feedbackMessage');
+        
+        // Ensure feedback modal stays closed on initialization
+        this.feedbackModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        
+        // Add safety check after 2 seconds to ensure modal stays closed unless user-triggered
+        setTimeout(() => {
+            if (!this.feedbackModalUserTriggered && this.feedbackModal.style.display === 'flex') {
+                console.log('Automatically closing feedback modal - it should not open automatically');
+                this.closeFeedbackModal();
+            }
+        }, 2000);
     }
     
     openFeedbackModal() {
+        console.log('Feedback modal opened - this should only happen when button is clicked');
+        this.feedbackModalUserTriggered = true;
         this.feedbackModal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
     }
@@ -633,6 +832,7 @@ class SyncWatch {
         this.feedbackModal.style.display = 'none';
         document.body.style.overflow = 'auto';
         this.feedbackForm.reset();
+        this.feedbackModalUserTriggered = false; // Reset the flag
     }
     
     submitFeedback(e) {
@@ -684,16 +884,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1000);
 });
-
-// Service Worker registration for PWA capabilities (optional)
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-                console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-                console.log('SW registration failed: ', registrationError);
-            });
-    });
-}

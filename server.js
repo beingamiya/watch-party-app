@@ -2,6 +2,8 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,8 +19,45 @@ const PORT = process.env.PORT || 3000;
 // Store room information
 const rooms = new Map();
 
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, 'uploads');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        // Generate unique filename with timestamp and random string
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + '-' + file.originalname);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit
+    },
+    fileFilter: (req, file, cb) => {
+        // Allow only video files
+        const allowedTypes = /mp4|avi|mov|mkv|webm|flv|wmv|mpeg|mpg|3gp/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Only video files are allowed'));
+        }
+    }
+});
+
 // Serve static files
 app.use(express.static(path.join(__dirname)));
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Serve the main page
 app.get('/', (req, res) => {
@@ -203,6 +242,40 @@ io.on('connection', (socket) => {
             }
         }
     });
+});
+
+// File upload endpoint
+app.post('/api/upload', upload.single('video'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
+        const fileUrl = `/uploads/${req.file.filename}`;
+        
+        res.json({
+            success: true,
+            url: fileUrl,
+            filename: req.file.filename,
+            originalName: req.file.originalname,
+            size: req.file.size
+        });
+        
+        console.log(`File uploaded: ${req.file.originalname} -> ${req.file.filename}`);
+    } catch (error) {
+        console.error('Upload error:', error);
+        res.status(500).json({ error: 'Upload failed', message: error.message });
+    }
+});
+
+// Error handling for file uploads
+app.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'File too large', message: 'Maximum file size is 5GB' });
+        }
+    }
+    res.status(400).json({ error: 'Upload failed', message: error.message });
 });
 
 // API endpoints for room management

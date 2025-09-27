@@ -55,9 +55,9 @@ A real-time synchronized media sharing application where two or more people can 
 3. Click "Join Room"
 
 ### Loading Media
-- **Local Files**: Click "Load Video" or "Load Audio" to upload files
+- **Local Files**: Click "Load Video" or "Load Audio" to upload files (up to 5GB)
 - **URLs**: Paste video/audio URLs and click "Load Video" or "Load Audio"
-- **Supported Sources**: Local files, direct media URLs, and more
+- **Supported Sources**: Local files, direct media URLs, YouTube, and more
 
 ### Synchronized Playback
 - When anyone plays, pauses, or seeks the media, it syncs for everyone
